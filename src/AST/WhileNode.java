@@ -15,7 +15,8 @@ public class WhileNode extends ConditionalNode {
     public boolean execute(Game game) {
         if (super.condition.eval(game) > 0 && executionCount < 10000) {
             executionCount++;
-            trueNode.execute(game);
+            if (!trueNode.execute(game))
+                return false;
             return execute(game);
         }
         return true;
