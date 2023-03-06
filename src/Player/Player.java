@@ -1,7 +1,5 @@
 package Player;
 
-import Region.*;
-
 import java.util.Map;
 
 public interface Player {
@@ -11,7 +9,7 @@ public interface Player {
 
     long getBudget();
 
-    void updateBudget(long amount);
+    boolean updateBudget(long amount);
 
     Map<String, Long> identifiers();
 

@@ -10,8 +10,7 @@ public class CollectNode extends Node.ExecNode {
     }
 
     @Override
-    public ExecNode execute(Game game) {
-        game.collect(expression.eval(game));
-        return next;
+    public boolean execute(Game game) {
+        return game.collect(expression.eval(game));
     }
 }

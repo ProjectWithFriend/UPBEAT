@@ -22,8 +22,10 @@ public class PlayerProps implements Player {
     }
 
     @Override
-    public void updateBudget(long amount) {
+    public boolean updateBudget(long amount) {
+        boolean result = budget + amount >= 0;
         budget = Math.max(0, budget + amount);
+        return result;
     }
 
     @Override

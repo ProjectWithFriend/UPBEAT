@@ -19,8 +19,10 @@ public class GameProps implements Game {
     private Region cityCrew;
     private final Map<Player, Region> cityCenterRegion;
     private final Configuration config;
+    private long turn;
 
     public GameProps(Configuration config, List<Region> territory, Player player1, Player player2) {
+        this.turn = 1;
         this.config = config;
         this.territory = territory;
         this.player1 = player1;
@@ -64,7 +66,7 @@ public class GameProps implements Game {
     }
 
     @Override
-    public void invest(long value) {
+    public boolean invest(long value) {
         currentPlayer.updateBudget(-1);
         boolean atLeastOneAdjacent = cityCrew.getOwner() == currentPlayer;
         for (Region adjacent : getAdjacentRegions(cityCrew)) {
@@ -72,19 +74,20 @@ public class GameProps implements Game {
             atLeastOneAdjacent = adjacent.getOwner() == currentPlayer;
         }
         if (!atLeastOneAdjacent) // adjacency requirement
-            return;
+            return true;
         if (currentPlayer.getBudget() < value) // budget requirement
-            return;
+            return true;
         currentPlayer.updateBudget(-value);
         cityCrew.updateOwner(currentPlayer);
         cityCrew.updateDeposit(value);
+        return true;
     }
 
     @Override
-    public void relocate() {
+    public boolean relocate() {
         //check if the player has enough budget
-        if (currentPlayer.getBudget() < 1)
-            return;
+        if (!currentPlayer.updateBudget(-actionCost))
+            return false;
 
         Point currentCityCrewLocation = cityCrew.getLocation();
         Point currentCityCenter = cityCenterRegion.get(currentPlayer).getLocation();
@@ -93,14 +96,15 @@ public class GameProps implements Game {
         int cost = 5 * distance + 10;
 
         //validate if the player has enough budget
-        if (currentPlayer.getBudget() >= cost + actionCost && cityCrew.getOwner() != currentPlayer) {
-            currentPlayer.updateBudget(-cost - actionCost);
+        if (currentPlayer.getBudget() >= cost && cityCrew.getOwner() != currentPlayer) {
+            currentPlayer.updateBudget(-cost);
             //update the city center location of current player
             cityCenterRegion.get(currentPlayer).updateOwner(null);
             cityCrew.updateOwner(currentPlayer);
             cityCenterRegion.put(currentPlayer, cityCrew);
             cityCenterRegion.get(currentPlayer).setCityCenter(currentPlayer);
         }
+        return false;
     }
 
     @Override
@@ -151,10 +155,10 @@ public class GameProps implements Game {
     @Override
     public void submitPlan(String constructionPlan) {
         Parser parser = new GrammarParser(new IterateTokenizer(constructionPlan));
-        Node.ExecNode node = parser.parse();
+        List<Node.ExecNode> nodes = parser.parse();
         beginTurn();
-        while (node != null) {
-            node = node.execute(this);
+        for (Node.ExecNode node : nodes) {
+            node.execute(this);
         }
         endTurn();
     }
@@ -175,6 +179,11 @@ public class GameProps implements Game {
     }
 
     @Override
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    @Override
     public Region regionAt(Point point) {
         long index = point.getY() * config.cols() + point.getX();
         return territory.get((int) index);
@@ -191,20 +200,24 @@ public class GameProps implements Game {
     }
 
     public void endTurn() {
-        if (currentPlayer == player1)
+        for (Region region : territory) {
+            if (region.getOwner() == currentPlayer) {
+                long interest = region.getDeposit();
+                interest *= config.interestPercentage(turn, interest) / 100.0;
+                region.updateDeposit(interest);
+            }
+        }
+        if (currentPlayer == player1) {
             currentPlayer = player2;
-        else
+        } else {
             currentPlayer = player1;
+            turn++;
+        }
     }
 
     @Override
     public Region cityCrewRegion() {
         return cityCrew;
-    }
-
-    @Override
-    public Player getCurrentPlayer() {
-        return currentPlayer;
     }
 
     public void moveCityCrew(Point point) {
@@ -241,18 +254,18 @@ public class GameProps implements Game {
         map.put("curcol", cityCrew.getLocation().getY());
         map.put("budget", currentPlayer.getBudget());
         map.put("deposit", cityCrew.getDeposit());
-        map.put("int", config.interestPercentage());
+        map.put("int", (long) config.interestPercentage(turn, cityCrew.getDeposit()));
         map.put("maxdeposit", config.maxDeposit());
         map.put("random", new Random().nextLong(1000));
         return map;
     }
 
     @Override
-    public void attack(Direction direction, long value) {
+    public boolean attack(Direction direction, long value) {
         //validate if the player has enough budget
         if (value + actionCost > currentPlayer.getBudget() || value < 0) {
             currentPlayer.updateBudget(-actionCost);
-            return;
+            return false;
         }
 
         //get vital information
@@ -273,5 +286,6 @@ public class GameProps implements Game {
                 currentPlayer.updateBudget(-actionCost - value);
             }
         }
+        return true;
     }
 }

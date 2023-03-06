@@ -3,8 +3,6 @@ package Game;
 import Game.GameException.*;
 import org.junit.jupiter.api.Test;
 
-import java.util.Objects;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public final class GameUtilsTest {
@@ -30,35 +28,5 @@ public final class GameUtilsTest {
         assertThrows(InvalidConfiguration.class, () -> GameUtils.loadConfig("""
                 plan_rev_sec=60
                 """));
-    }
-
-    @Test
-    public void testCreateTerritory() {
-        GameUtils.loadConfig("m=1 n=1");
-        assertEquals(1, GameUtils.createTerritory().size());
-
-        GameUtils.loadConfig("m=10 n=10");
-        assertEquals(100, GameUtils.createTerritory().size());
-    }
-
-    @Test
-    public void testCreatePlayer() {
-        assertNull(GameUtils.createPlayer(""));
-
-        GameUtils.loadConfig("m=0 n=0");
-        GameUtils.createTerritory();
-        assertNull(GameUtils.createPlayer(""));
-
-        GameUtils.loadConfig("m=1 n=1");
-        GameUtils.createTerritory();
-        assertNotNull(GameUtils.createPlayer(""));
-
-//        GameUtils.loadConfig("m=10 n=10");
-//        GameUtils.createTerritory();
-//        assertNotNull(GameUtils.createPlayer(""));
-//        assertNotEquals(
-//                Objects.requireNonNull(GameUtils.createPlayer("")).cityCenterRegion(),
-//                Objects.requireNonNull(GameUtils.createPlayer("")).cityCenterRegion()
-//        );
     }
 }

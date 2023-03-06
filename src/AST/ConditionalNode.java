@@ -16,13 +16,13 @@ public abstract class ConditionalNode extends ExecNode {
     }
 
     @Override
-    public ExecNode execute(Game game) {
+    public boolean execute(Game game) {
         trueNode.next = next;
         falseNode.next = next;
         if (condition.eval(game) > 0) {
-            return trueNode;
+            return trueNode.execute(game);
         } else {
-            return falseNode;
+            return falseNode.execute(game);
         }
     }
 }

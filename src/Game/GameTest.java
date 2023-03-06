@@ -20,7 +20,7 @@ public final class GameTest {
     private List<TestRegion> territory;
     private GameProps game;
 
-    private static TestRegion mockRegion(Point location) {
+    private static TestRegion mockRegion(Point location, long maxDeposit) {
         return new TestRegion() {
             private boolean isCityCenter;
 
@@ -41,9 +41,8 @@ public final class GameTest {
 
             @Override
             public void updateDeposit(long amount) {
-                deposit += amount;
-                if (deposit < 0)
-                    deposit = 0;
+                deposit = Math.max(0, deposit + amount);
+                deposit = Math.min(maxDeposit, deposit);
             }
 
             @Override
@@ -64,12 +63,12 @@ public final class GameTest {
         };
     }
 
-    private static List<TestRegion> mockTerritory(int rows, int cols) {
+    private static List<TestRegion> mockTerritory(int rows, int cols, long maxDeposit) {
         List<TestRegion> regions = new ArrayList<>(rows * cols);
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 Point location = new EuclidianPoint(j, i);
-                regions.add(mockRegion(location));
+                regions.add(mockRegion(location, maxDeposit));
             }
         }
         return regions;
@@ -84,8 +83,10 @@ public final class GameTest {
             }
 
             @Override
-            public void updateBudget(long amount) {
+            public boolean updateBudget(long amount) {
+                boolean result = budget + amount >= 0;
                 budget = Math.max(0, budget + amount);
+                return result;
             }
 
             @Override
@@ -109,72 +110,18 @@ public final class GameTest {
     }
 
     private static Configuration mockConfiguration() {
-        return new Configuration() {
-            @Override
-            public long rows() {
-                return 4;
-            }
-
-            @Override
-            public long cols() {
-                return 4;
-            }
-
-            @Override
-            public long initialPlanMinutes() {
-                return 10;
-            }
-
-            @Override
-            public long initialPlanSeconds() {
-                return 0;
-            }
-
-            @Override
-            public long initialBudget() {
-                return 0;
-            }
-
-            @Override
-            public long initialDeposit() {
-                return 0;
-            }
-
-            @Override
-            public long revisionPlanMinutes() {
-                return 10;
-            }
-
-            @Override
-            public long revisionPlanSeconds() {
-                return 0;
-            }
-
-            @Override
-            public long revisionCost() {
-                return 10;
-            }
-
-            @Override
-            public long maxDeposit() {
-                return 1000;
-            }
-
-            @Override
-            public long interestPercentage() {
-                return 1;
-            }
-        };
+        return GameUtils.defaultConfiguration();
     }
 
     @BeforeEach
     public void before() {
-        territory = mockTerritory(4, 4);
+        Configuration configuration = mockConfiguration();
+        territory = mockTerritory(4, 4, configuration.maxDeposit());
         player1 = mockPlayer(territory.get(4));
         player2 = mockPlayer(territory.get(7));
         List<Region> territoryRegion = new ArrayList<>(territory.size());
         territoryRegion.addAll(territory);
-        game = new GameProps(mockConfiguration(), territoryRegion, player1, player2);
+        game = new GameProps(configuration, territoryRegion, player1, player2);
     }
 
     @Test
@@ -303,10 +250,10 @@ public final class GameTest {
             assertEquals(0, crewRegion.deposit);
 
             // invest cost x+1 where x amount of invest
-            currentPlayer.budget = 2;
-            game.invest(1);
+            currentPlayer.budget = 12;
+            game.invest(11);
             assertEquals(0, currentPlayer.budget);
-            assertEquals(1, crewRegion.deposit);
+            assertEquals(11, crewRegion.deposit);
 
             // invest only allowed when target region have adjacent owned player region
             game.moveCityCrew(Point.of(3, 3)); // no owned adjacent with 2 players
@@ -315,6 +262,18 @@ public final class GameTest {
             game.invest(0);
             assertEquals(0, currentPlayer.budget);
             assertEquals(0, crewRegion.deposit);
+
+            if (currentPlayer == player1) {
+                game.moveCityCrew(Point.of(0, 0));
+                crewRegion = territory.get(0);
+            } else {
+                game.moveCityCrew(Point.of(3, 0));
+                crewRegion = territory.get(3);
+            }
+            currentPlayer.budget = 14;
+            game.invest(12);
+            assertEquals(1, currentPlayer.budget);
+            assertEquals(12, crewRegion.deposit);
             game.endTurn();
         }
     }
@@ -410,6 +369,7 @@ public final class GameTest {
         assertEquals(Point.of(2, 1), game.cityCrewRegion().getLocation());
         assertFalse(game.move(Direction.UpRight));
         assertEquals(Point.of(2, 1), game.cityCrewRegion().getLocation());
+        game.endTurn();
     }
 
     private static abstract class TestRegion implements Region {
@@ -430,6 +390,21 @@ public final class GameTest {
 
     @Test
     public void testInterestPercentage() {
-
+        Region playerRegion = territory.get(4);
+        playerRegion.updateDeposit(100);
+        Configuration configuration = mockConfiguration();
+        long playerDeposit = 100;
+        for (int i = 0; i <= 100; i++) {
+            game.beginTurn();
+            playerDeposit *= 1.0 + configuration.interestPercentage(i, playerDeposit) / 100.0;
+            assertEquals(
+                    Math.min(configuration.maxDeposit(), playerDeposit), // must not exceed limit
+                    playerRegion.getDeposit(),
+                    String.format("not equals at turn %d", i)
+            );
+            game.endTurn();
+            game.beginTurn();
+            game.endTurn();
+        }
     }
 }

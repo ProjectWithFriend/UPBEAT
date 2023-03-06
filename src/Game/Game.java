@@ -23,7 +23,7 @@ public interface Game {
      * @param direction direction to attack
      * @param value     expenditure
      */
-    void attack(Direction direction, long value);
+    boolean attack(Direction direction, long value);
 
     /**
      * retrieves deposits from the current region occupied by the city crew.
@@ -38,12 +38,12 @@ public interface Game {
      *
      * @param value deposits
      */
-    void invest(long value);
+    boolean invest(long value);
 
     /**
      * relocates the city center to the current region of city crew.
      */
-    void relocate();
+    boolean relocate();
 
     /**
      * looks for the opponent's region closest to the current location of the city crew in a given direction.
