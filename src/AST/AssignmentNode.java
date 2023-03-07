@@ -16,10 +16,11 @@ public class AssignmentNode extends ExecNode {
         this.expression = expression;
     }
 
-    public ExecNode execute(Game game) {
-        Map<String, Long> memory = game.getIdentifiers();
+    @Override
+    public boolean execute(Game game) {
+        Map<String, Long> memory = game.identifiers();
         memory.put(identifier, expression.eval(game));
-        return next;
+        return true;
     }
 
     public ExecNode execute(Map<String, Long> map) {

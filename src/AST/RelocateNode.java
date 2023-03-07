@@ -6,8 +6,8 @@ import static AST.Node.*;
 
 public class RelocateNode extends ExecNode {
     @Override
-    public ExecNode execute(Game game) {
+    public boolean execute(Game game) {
         game.relocate();
-        return null;
+        return true;
     }
 }

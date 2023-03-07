@@ -14,23 +14,21 @@ public final class GameUtils {
 
     private static List<Region> territory;
 
-    private static Map<String, Long> nodesEvaluation(ExecNode node) {
+    private static Map<String, Long> nodesEvaluation(List<ExecNode> nodes) {
         Map<String, Long> map = new HashMap<>();
-        while (node != null) {
+        for (ExecNode node : nodes) {
             if (!(node instanceof AssignmentNode))
                 throw new InvalidConfiguration();
-            node = ((AssignmentNode) node).execute(map);
+            ((AssignmentNode) node).execute(map);
         }
         return map;
     }
 
-    private static Configuration configuration;
-
     public static Configuration loadConfig(String config) {
         Parser parser = new GrammarParser(new IterateTokenizer(config));
-        ExecNode node = parser.parse();
-        Map<String, Long> map = nodesEvaluation(node);
-        configuration = new Configuration() {
+        List<ExecNode> nodes = parser.parse();
+        Map<String, Long> map = nodesEvaluation(nodes);
+        Configuration configuration = new Configuration() {
             @Override
             public long rows() {
                 return map.getOrDefault("m", 20L);
@@ -82,10 +80,14 @@ public final class GameUtils {
             }
 
             @Override
-            public long interestPercentage() {
-                return map.getOrDefault("interest_pct", 5L);
+            public double interestPercentage(long turn, long deposit) {
+                if (turn == 0)
+                    return 0;
+                return map.getOrDefault("interest_pct", 0L) * Math.log10(deposit) * Math.log(turn);
             }
         };
+        if (configuration.initialPlanSeconds() >= 60) throw new InvalidConfiguration();
+        if (configuration.revisionPlanSeconds() >= 60) throw new InvalidConfiguration();
         return configuration;
     }
 
@@ -94,11 +96,11 @@ public final class GameUtils {
      *
      * @return null if not territory else new player
      */
-    public static List<Region> createTerritory() {
+    public static List<Region> createTerritory(Configuration configuration) {
         territory = new ArrayList<>();
         for (int i = 0; i < configuration.rows(); i++) {
             for (int j = 0; j < configuration.cols(); j++) {
-                territory.add(new RegionProps(Point.of(j, i)));
+                territory.add(new RegionProps(Point.of(j, i), configuration.maxDeposit()));
             }
         }
         return territory;
@@ -115,32 +117,51 @@ public final class GameUtils {
     }
 
     private static int id = 1;
+
     /**
      * create new a player
      *
      * @return null if no territory else a new player
      */
-    public static Player createPlayer(String name) {
+    public static Player createPlayer(Configuration configuration, String name) {
         if (territory == null || territory.size() == 0)
             return null;
 
         Region region = pickUnoccupiedRegion();
-        Player player = new PlayerProps(id++, name, configuration.initialBudget(), region);
-        region.updateOwner(player);
+        Player player = new PlayerProps(id++, name, configuration.initialBudget());
+        region.setCityCenter(player);
         region.updateDeposit(configuration.initialDeposit());
         return player;
     }
 
+    public static Configuration defaultConfiguration() {
+        return loadConfig("""
+                m=4
+                n=4
+                init_plan_min=5
+                init_plan_sec=0
+                init_budget=10000
+                init_center_dep=100
+                plan_rev_min=30
+                plan_rev_sec=0
+                rev_cost=100
+                max_dep=1000000
+                interest_pct=5
+                """);
+    }
+
     /**
      * create new game instance
+     *
      * @param namePlayer1 name of player 1
      * @param namePlayer2 name of player 2
      * @return instance of the game
      */
     public static Game createGame(String namePlayer1, String namePlayer2) {
-        List<Region> territory = createTerritory();
-        Player player1 = createPlayer(namePlayer1);
-        Player player2 = createPlayer(namePlayer2);
+        Configuration configuration = defaultConfiguration();
+        List<Region> territory = createTerritory(configuration);
+        Player player1 = createPlayer(configuration, namePlayer1);
+        Player player2 = createPlayer(configuration, namePlayer2);
         return new GameProps(configuration, territory, player1, player2);
     }
 }

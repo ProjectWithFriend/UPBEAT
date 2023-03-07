@@ -1,28 +1,19 @@
 package Player;
 
-import Region.*;
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class PlayerProps implements Player {
     private final long id;
     private final String name;
-    private Region cityCenter;
     private long budget;
     private final Map<String, Long> identifier;
 
-    public PlayerProps(long id, String name, long budget, Region cityCenter) {
+    public PlayerProps(long id, String name, long budget) {
         this.id = id;
         this.name = name;
         this.identifier = new HashMap<>();
         this.budget = budget;
-        this.cityCenter = cityCenter;
-    }
-
-    @Override
-    public boolean isAlive() {
-        return false;
     }
 
     @Override
@@ -31,14 +22,10 @@ public class PlayerProps implements Player {
     }
 
     @Override
-    public void updateBudget(long amount) {
+    public boolean updateBudget(long amount) {
+        boolean result = budget + amount >= 0;
         budget = Math.max(0, budget + amount);
-    }
-
-
-    @Override
-    public Region getCityCenter() {
-        return cityCenter;
+        return result;
     }
 
     @Override
@@ -52,14 +39,8 @@ public class PlayerProps implements Player {
     }
 
     @Override
-    public Map<String, Long> getIdentifiers() {
+    public Map<String, Long> identifiers() {
         return identifier;
     }
 
-    @Override
-    public void relocate(Region to) {
-        cityCenter.updateOwner(null);
-        cityCenter = to;
-        cityCenter.updateOwner(this);
-    }
 }

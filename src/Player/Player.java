@@ -1,24 +1,16 @@
 package Player;
 
-import Game.Direction;
-import Region.*;
-
 import java.util.Map;
 
 public interface Player {
-    boolean isAlive();
-
-    long getBudget();
-
-    void updateBudget(long amount);
+    long getID();
 
     String getName();
 
-    long getID();
+    long getBudget();
 
-    Map<String, Long> getIdentifiers();
+    boolean updateBudget(long amount);
 
-    void relocate(Region region);
-    Region getCityCenter();
+    Map<String, Long> identifiers();
 
 }

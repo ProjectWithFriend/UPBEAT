@@ -21,9 +21,8 @@ public abstract class Node {
          * execute a node and maybe change state of execution
          *
          * @param game current state of game
-         * @return next executable node `null` if no more execution
          */
-        public abstract ExecNode execute(Game game);
+        public abstract boolean execute(Game game);
     }
 }
 

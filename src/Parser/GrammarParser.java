@@ -5,6 +5,7 @@ import AST.Node.*;
 import Game.Direction;
 import Tokenizer.Tokenizer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -46,30 +47,24 @@ public class GrammarParser implements Parser {
     }
 
     @Override
-    public ExecNode parse() {
-        ExecNode actions = parsePlan();
+    public List<ExecNode> parse() {
+        List<ExecNode> actions = parsePlan();
         if (tkz.hasNext())
-            throw new ASTException.LeftoverTokenException(tkz.peek()); // TODO: make exception
+            throw new ASTException.LeftoverTokenException(tkz.peek());
         return actions;
     }
 
-    private ExecNode parsePlan() {
-        ExecNode actions = parseStatement();
-        actions.next = parseStatements();
-        return actions;
+    private List<ExecNode> parsePlan() {
+        List<ExecNode> plan = new ArrayList<>();
+        plan.add(parseStatement());
+        parseStatements(plan);
+        return plan;
     }
 
-    private ExecNode parseStatements() {
-        ExecNode root = null, node = null;
+    private void parseStatements(List<ExecNode> list) {
         while (!tkz.peek("}") && tkz.hasNext()) {
-            ExecNode current = parseStatement();
-            if (root == null)
-                root = current;
-            if (node != null)
-                node.next = current;
-            node = current;
+            list.add(parseStatement());
         }
-        return root;
     }
 
     private ExecNode parseStatement() {
@@ -85,11 +80,11 @@ public class GrammarParser implements Parser {
     }
 
     private ExecNode parseBlockStatement() {
-        ExecNode node;
+        List<ExecNode> nodes = new ArrayList<>();
         tkz.consume("{");
-        node = parseStatements();
+        parseStatements(nodes);
         tkz.consume("}");
-        return node;
+        return new BlockNode(nodes);
     }
 
     private ExecNode parseWhileStatement() {
@@ -121,15 +116,20 @@ public class GrammarParser implements Parser {
     }
 
     private ExecNode parseAssignmentStatement() {
-        String identifier = tkz.consume();
-        if (reserved.contains(identifier))
-            throw new ReservedIdentifier(identifier, tkz.getLine());
+        String identifier = parseIdentifier();
         if (tkz.peek("="))
             tkz.consume();
         else
             throw new CommandNotFound(identifier, tkz.getLine());
         ExprNode expression = parseExpression();
         return new AssignmentNode(identifier, expression);
+    }
+
+    private String parseIdentifier() {
+        String identifier = tkz.consume();
+        if (reserved.contains(identifier))
+            throw new ReservedIdentifier(identifier, tkz.getLine());
+        return identifier;
     }
 
     private ExecNode parseActionCommand() {
@@ -183,7 +183,7 @@ public class GrammarParser implements Parser {
 
     private ExprNode parseFactor() {
         ExprNode left = parsePower();
-        while (tkz.peek("^")) {
+        if (tkz.peek("^")) {
             String operator = tkz.consume();
             ExprNode right = parseFactor();
             left = new BinaryOperationNode(left, operator, right);

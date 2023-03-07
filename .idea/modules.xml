@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/SpringTest/SpringTest.iml" filepath="$PROJECT_DIR$/SpringTest/SpringTest.iml" />
       <module fileurl="file://$PROJECT_DIR$/UPBEAT.iml" filepath="$PROJECT_DIR$/UPBEAT.iml" />
     </modules>
   </component>

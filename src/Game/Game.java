@@ -1,23 +1,33 @@
 package Game;
 
 import Region.*;
+import Player.*;
 
 import java.util.List;
 import java.util.Map;
 
 public interface Game {
-    Map<String, Long> getIdentifiers();
-    Map<String, Long> getSpecialIdentifiers();
+    List<Region> getTerritory();
+
+    Player getPlayer1();
+
+    Player getPlayer2();
+
+    Map<String, Long> identifiers();
+
+    Map<String, Long> specialIdentifiers();
 
     /**
      * attempts to attack a region located one unit away from the city crew in the specified direction.
+     *
      * @param direction direction to attack
-     * @param value expenditure
+     * @param value     expenditure
      */
-    void attack(Direction direction, long value);
+    boolean attack(Direction direction, long value);
 
     /**
      * retrieves deposits from the current region occupied by the city crew.
+     *
      * @param value collection amount
      * @return result of collect, true = success, false = fail
      */
@@ -25,17 +35,19 @@ public interface Game {
 
     /**
      * adds more deposits to the current region occupied by the city crew.
+     *
      * @param value deposits
      */
-    void invest(long value);
+    boolean invest(long value);
 
     /**
      * relocates the city center to the current region of city crew.
      */
-    void relocate();
+    boolean relocate();
 
     /**
      * looks for the opponent's region closest to the current location of the city crew in a given direction.
+     *
      * @param direction direction to look
      * @return 100x+y where x is distance, y deposit of that region if none 0
      */
@@ -43,6 +55,7 @@ public interface Game {
 
     /**
      * moves the city crew one unit in the specified direction.
+     *
      * @param direction direction to move
      * @return result of moves, true = success, false = fail
      */
@@ -55,15 +68,16 @@ public interface Game {
 
     /**
      * submit a plan of current player to the game
+     *
      * @param constructionPlan a plan
      */
     void submitPlan(String constructionPlan);
 
-    List<Region> getTerritory();
+    Region regionAt(Point point);
 
-    Region getRegion(Point point);
+    long budget();
 
-    long getBudget();
+    Region cityCrewRegion();
 
-    Region getCityCrew();
+    Player getCurrentPlayer();
 }

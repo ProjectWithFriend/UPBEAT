@@ -11,5 +11,5 @@ public interface Configuration {
     long revisionPlanSeconds();
     long revisionCost();
     long maxDeposit();
-    long interestPercentage();
+    double interestPercentage(long turn, long deposit);
 }
