@@ -372,6 +372,23 @@ public final class GameTest {
         game.endTurn();
     }
 
+    @Test
+    public void testInterestPercentage() {
+        Region playerRegion = territory.get(4);
+        playerRegion.updateDeposit(100);
+        Configuration configuration = mockConfiguration();
+        long playerDeposit = 100;
+        for (int i = 0; i <= 100; i++) {
+            game.beginTurn();
+            playerDeposit *= 1.0 + configuration.interestPercentage(i, playerDeposit) / 100.0;
+            assertEquals(Math.min(configuration.maxDeposit(), playerDeposit), // must not exceed limit
+                    playerRegion.getDeposit(), String.format("not equals at turn %d", i));
+            game.endTurn();
+            game.beginTurn();
+            game.endTurn();
+        }
+    }
+
     private static abstract class TestRegion implements Region {
         public long deposit = 0;
         public Player owner = null;
@@ -385,26 +402,6 @@ public final class GameTest {
         public TestPlayer(TestRegion cityCenter) {
             cityCenter.updateOwner(this);
             this.cityCenter = cityCenter;
-        }
-    }
-
-    @Test
-    public void testInterestPercentage() {
-        Region playerRegion = territory.get(4);
-        playerRegion.updateDeposit(100);
-        Configuration configuration = mockConfiguration();
-        long playerDeposit = 100;
-        for (int i = 0; i <= 100; i++) {
-            game.beginTurn();
-            playerDeposit *= 1.0 + configuration.interestPercentage(i, playerDeposit) / 100.0;
-            assertEquals(
-                    Math.min(configuration.maxDeposit(), playerDeposit), // must not exceed limit
-                    playerRegion.getDeposit(),
-                    String.format("not equals at turn %d", i)
-            );
-            game.endTurn();
-            game.beginTurn();
-            game.endTurn();
         }
     }
 }
