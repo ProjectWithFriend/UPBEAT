@@ -84,28 +84,60 @@ public class GameProps implements Game {
         return true;
     }
 
-    private double shortestPathAStar(Point from, Point to) {
-        Map<Point, Double> distances = new HashMap<>(6);
-        List<Map.Entry<Point, Double>> list = new ArrayList<>(32);
-        Point newPoint = from;
-        long i = 0;
-        while (!newPoint.equals(to)) {
-            for (Direction direction : Direction.values()) {
-                Point x = newPoint.direction(direction);
-                if (!x.isValidPoint(config.rows(), config.cols()))
-                    continue;
-                distances.put(x, shortestPathPythagoras(x, to));
-            }
-            list.addAll(distances.entrySet());
-            list.sort(Map.Entry.comparingByValue());
-            newPoint = list.remove(0).getKey();
-            i++;
+    private record GoaledPoint(Point position, Point goal) implements Comparable<GoaledPoint> {
+        @Override
+        public int compareTo(GoaledPoint o) {
+            return (int) (distancePythagoras(position, goal) - distancePythagoras(o.position, goal));
         }
-        return i;
     }
 
-    private double shortestPathPythagoras(Point from, Point to) {
-        return Math.sqrt(Math.pow(from.getX() - to.getX(), 2) + Math.pow(from.getY() - to.getY(), 2));
+    /**
+     * find the shortest distance according to <a href="https://en.wikipedia.org/wiki/A*_search_algorithm">wikipedia<a/>
+     *
+     * @param start starting point
+     * @param goal  target point
+     * @return `-1` when no path possible else distance
+     */
+    private long distanceAStar(Point start, Point goal) {
+        PriorityQueue<GoaledPoint> openSet = new PriorityQueue<>();
+        HashMap<Point, Point> cameFrom = new HashMap<>();
+        HashMap<Point, Double> gScore = new HashMap<>();
+        openSet.add(new GoaledPoint(start, goal));
+        gScore.put(start, 0.0);
+        while (!openSet.isEmpty()) {
+            Point current = openSet.remove().position;
+            if (current.equals(goal))
+                return findDistanceAStar(cameFrom, current);
+            for (Direction direction : Direction.values()) {
+                Point neighbor = current.direction(direction);
+                if (!neighbor.isValidPoint(config.rows(), config.cols()) || neighbor.equals(start))
+                    continue;
+                double tentativeGScore = gScore.get(current) + distancePythagoras(current, neighbor);
+                gScore.putIfAbsent(neighbor, Double.POSITIVE_INFINITY);
+                if (tentativeGScore >= gScore.get(neighbor))
+                    continue;
+                cameFrom.put(neighbor, current);
+                gScore.put(neighbor, tentativeGScore);
+                GoaledPoint point = new GoaledPoint(neighbor, goal);
+                if (!openSet.contains(point))
+                    openSet.add(point);
+            }
+        }
+        return -1;
+    }
+
+    private long findDistanceAStar(HashMap<Point, Point> cameFrom, Point current) {
+        long distance = 0;
+        current = cameFrom.get(current);
+        while (current != null) {
+            distance++;
+            current = cameFrom.get(current);
+        }
+        return distance;
+    }
+
+    private static double distancePythagoras(Point from, Point to) {
+        return Math.sqrt(Math.pow(from.getX() - to.getX(), 2) + Math.pow(from.getY() - to.getY(), 2)) * 10;
     }
 
     @Override
@@ -116,9 +148,8 @@ public class GameProps implements Game {
 
         Point currentCityCrewLocation = cityCrew.getLocation();
         Point currentCityCenter = cityCenters.get(currentPlayer).getLocation();
-        int distance = (int) shortestPathAStar(currentCityCrewLocation, currentCityCenter);
-        if (distance < 0) distance = 1;
-        int cost = 5 * distance + 10;
+        long distance = distanceAStar(currentCityCrewLocation, currentCityCenter);
+        long cost = 5 * distance + 10;
 
         //validate if the player has enough budget
         if (currentPlayer.getBudget() >= cost && cityCrew.getOwner() == currentPlayer) {

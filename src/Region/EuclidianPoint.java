@@ -29,4 +29,10 @@ public class EuclidianPoint implements Point {
             return false;
         return point.getX() == x && point.getY() == y;
     }
+
+    @Override
+    public int hashCode() {
+        long tmp = (y + ((x + 1) / 2));
+        return (int) (x + (tmp * tmp));
+    }
 }

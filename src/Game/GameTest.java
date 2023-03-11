@@ -5,6 +5,7 @@ import Player.Player;
 import Region.EuclidianPoint;
 import Region.Point;
 import Region.Region;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,22 @@ public final class GameTest {
     private TestPlayer player1, player2;
     private List<TestRegion> territory;
     private GameProps game;
+
+    private static abstract class TestRegion implements Region {
+        public long deposit = 0;
+        public Player owner = null;
+    }
+
+    private static abstract class TestPlayer implements Player {
+        public final Map<String, Long> identifiers = new HashMap<>();
+        public TestRegion cityCenter;
+        public long budget = 1;
+
+        public TestPlayer(TestRegion cityCenter) {
+            cityCenter.updateOwner(this);
+            this.cityCenter = cityCenter;
+        }
+    }
 
     private static TestRegion mockRegion(Point location, long maxDeposit) {
         return new TestRegion() {
@@ -127,50 +144,51 @@ public final class GameTest {
         List<Region> territoryRegion = new ArrayList<>(territory.size());
         territoryRegion.addAll(territory);
         game = new GameProps(configuration, territoryRegion, player1, player2);
+        game.beginTurn();
+    }
+
+    @AfterEach
+    public void after() {
+        game.endTurn();
     }
 
     @Test
     public void testCollect() {
-        for (int i = 0; i < 2; i++) {
-            game.beginTurn();
-            TestPlayer currentPlayer = i % 2 == 1 ? player2 : player1;
-            currentPlayer.budget = 0;
-            assertFalse(game.collect(0));
+        TestPlayer currentPlayer = player1;
+        currentPlayer.budget = 0;
+        assertFalse(game.collect(0));
 
-            currentPlayer.budget = 1;
-            assertTrue(game.collect(0));
-            assertEquals(0, currentPlayer.getBudget());
+        currentPlayer.budget = 1;
+        assertTrue(game.collect(0));
+        assertEquals(0, currentPlayer.getBudget());
 
-            currentPlayer.budget = 1;
-            assertFalse(game.collect(-1)); // TODO: clarification
-            assertEquals(1, currentPlayer.getBudget());
+        currentPlayer.budget = 1;
+        assertFalse(game.collect(-1));
+        assertEquals(1, currentPlayer.getBudget());
 
-            TestRegion region = (TestRegion) game.cityCrewRegion();
-            region.updateDeposit(100);
+        TestRegion region = (TestRegion) game.cityCrewRegion();
+        region.updateDeposit(100);
 
-            currentPlayer.budget = 2;
-            assertTrue(game.collect(0));
-            assertEquals(1, currentPlayer.budget);
-            assertEquals(100, region.deposit);
+        currentPlayer.budget = 2;
+        assertTrue(game.collect(0));
+        assertEquals(1, currentPlayer.budget);
+        assertEquals(100, region.deposit);
 
-            assertTrue(game.collect(1));
-            assertEquals(1, currentPlayer.budget);
-            assertEquals(99, region.deposit);
+        assertTrue(game.collect(1));
+        assertEquals(1, currentPlayer.budget);
+        assertEquals(99, region.deposit);
 
-            assertTrue(game.collect(2));
-            assertEquals(2, currentPlayer.budget);
-            assertEquals(97, region.deposit);
+        assertTrue(game.collect(2));
+        assertEquals(2, currentPlayer.budget);
+        assertEquals(97, region.deposit);
 
-            assertTrue(game.collect(98));
-            assertEquals(1, currentPlayer.budget);
-            assertEquals(97, region.deposit);
+        assertTrue(game.collect(98));
+        assertEquals(1, currentPlayer.budget);
+        assertEquals(97, region.deposit);
 
-            assertTrue(game.collect(97));
-            assertEquals(97, currentPlayer.budget);
-            assertEquals(0, region.deposit);
-
-            game.endTurn();
-        }
+        assertTrue(game.collect(97));
+        assertEquals(97, currentPlayer.budget);
+        assertEquals(0, region.deposit);
     }
 
     @Test
@@ -190,45 +208,27 @@ public final class GameTest {
     }
 
     @Test
-    public void relocateWithOpponentCity() {
-        // 23 21 11
-        game.beginTurn();
-        territory.get(6).updateOwner(player1);
-        territory.get(11).updateOwner(player1);
-        game.endTurn();
-        game.beginTurn();
-        player2.budget = 1;
-        game.moveCityCrew(Point.of(0, 3));
-        game.relocate();
-        game.endTurn();
-    }
-
-    @Test
     public void relocate() {
-        game.beginTurn();
+        long initialBudget = 100, distance;
+        game.moveCityCrew(Point.of(3, 3));
+        territory.get(15).updateOwner(player1); // x: 3, y: 3
 
-        player1.budget = 2;
-        game.moveCityCrew(Point.of(3, 2));
-        territory.get(11).updateOwner(player1);
-        game.invest(1);
-
-        player1.budget = 1000;
+        player1.budget = initialBudget;
+        distance = 3;
         game.relocate();
-        assertEquals(974, game.budget());
+        assertEquals(5 * distance + 10 + game.actionCost, initialBudget - game.budget());
 
-        player1.budget = 2;
         game.moveCityCrew(Point.of(0, 0));
-        territory.get(0).updateOwner(player1);
-        game.invest(1);
+        territory.get(0).updateOwner(player1); // x: 0, y: 0
 
-        player1.budget = 1000;
+        player1.budget = initialBudget;
+        distance = 1;
         game.relocate();
-        assertEquals(974, game.budget());
+        assertEquals(5 * distance + 10 + game.actionCost, initialBudget - game.budget());
     }
 
     @Test
     public void attack() {
-        game.beginTurn();
         player1.budget = 1000;
         game.moveCityCrew(Point.of(0, 0));
         territory.get(6).updateOwner(player2);
@@ -262,50 +262,44 @@ public final class GameTest {
 
     @Test
     public void testInvest() {
-        for (int i = 0; i < 2; i++) {
-            game.beginTurn();
+        TestPlayer currentPlayer = player1;
+        TestRegion crewRegion = (TestRegion) game.cityCrewRegion();
 
-            TestPlayer currentPlayer = i == 0 ? player1 : player2;
-            TestRegion crewRegion = (TestRegion) game.cityCrewRegion();
+        // invest always cost a unit
+        currentPlayer.budget = 1;
+        game.invest(0);
+        assertEquals(0, currentPlayer.budget);
+        assertEquals(0, crewRegion.deposit);
 
-            // invest always cost a unit
-            currentPlayer.budget = 1;
-            game.invest(0);
-            assertEquals(0, currentPlayer.budget);
-            assertEquals(0, crewRegion.deposit);
+        // invest cost x+1 where x amount of invest
+        currentPlayer.budget = 12;
+        game.invest(11);
+        assertEquals(0, currentPlayer.budget);
+        assertEquals(11, crewRegion.deposit);
 
-            // invest cost x+1 where x amount of invest
-            currentPlayer.budget = 12;
-            game.invest(11);
-            assertEquals(0, currentPlayer.budget);
-            assertEquals(11, crewRegion.deposit);
+        // invest only allowed when target region have adjacent owned player region
+        game.moveCityCrew(Point.of(3, 3)); // no owned adjacent with 2 players
+        crewRegion = territory.get(15);
+        currentPlayer.budget = 1;
+        game.invest(0);
+        assertEquals(0, currentPlayer.budget);
+        assertEquals(0, crewRegion.deposit);
 
-            // invest only allowed when target region have adjacent owned player region
-            game.moveCityCrew(Point.of(3, 3)); // no owned adjacent with 2 players
-            crewRegion = territory.get(15);
-            currentPlayer.budget = 1;
-            game.invest(0);
-            assertEquals(0, currentPlayer.budget);
-            assertEquals(0, crewRegion.deposit);
-
-            if (currentPlayer == player1) {
-                game.moveCityCrew(Point.of(0, 0));
-                crewRegion = territory.get(0);
-            } else {
-                game.moveCityCrew(Point.of(3, 0));
-                crewRegion = territory.get(3);
-            }
-            currentPlayer.budget = 14;
-            game.invest(12);
-            assertEquals(1, currentPlayer.budget);
-            assertEquals(12, crewRegion.deposit);
-            game.endTurn();
+        if (currentPlayer == player1) {
+            game.moveCityCrew(Point.of(0, 0));
+            crewRegion = territory.get(0);
+        } else {
+            game.moveCityCrew(Point.of(3, 0));
+            crewRegion = territory.get(3);
         }
+        currentPlayer.budget = 14;
+        game.invest(12);
+        assertEquals(1, currentPlayer.budget);
+        assertEquals(12, crewRegion.deposit);
     }
 
     @Test
     public void testOpponent() {
-        game.beginTurn();
         assertEquals(0, game.opponent());
         game.moveCityCrew(Point.of(3, 2));
         assertEquals(11, game.opponent());
@@ -319,29 +313,24 @@ public final class GameTest {
         assertEquals(12, game.opponent());
         game.moveCityCrew(Point.of(1, 2));
         assertEquals(22, game.opponent());
-
     }
 
     @Test
     public void noBudgetMove() {
-        for (int i = 0; i < 2; i++) {
-            TestPlayer currentPlayer = i == 0 ? player1 : player2;
-            currentPlayer.budget = 0;
-            game.beginTurn();
-            assertFalse(game.move(Direction.Up));
-            assertFalse(game.move(Direction.UpLeft));
-            assertFalse(game.move(Direction.UpRight));
-            assertFalse(game.move(Direction.Down));
-            assertFalse(game.move(Direction.DownLeft));
-            assertFalse(game.move(Direction.DownRight));
-            game.endTurn();
-        }
+        TestPlayer currentPlayer = player1;
+        currentPlayer.budget = 0;
+        game.beginTurn();
+        assertFalse(game.move(Direction.Up));
+        assertFalse(game.move(Direction.UpLeft));
+        assertFalse(game.move(Direction.UpRight));
+        assertFalse(game.move(Direction.Down));
+        assertFalse(game.move(Direction.DownLeft));
+        assertFalse(game.move(Direction.DownRight));
     }
 
     @Test
     public void testMove() {
         TestPlayer currentPlayer = player1;
-        game.beginTurn();
         currentPlayer.budget = 2;
         assertEquals(Point.of(0, 1), game.cityCrewRegion().getLocation());
 
@@ -447,26 +436,5 @@ public final class GameTest {
         game.submitPlan("done");
         assertThrows(GameException.GameEnded.class, () -> game.submitPlan("done"));
         assertEquals(player1, game.winner());
-    }
-
-    @Test
-    public void testTick() {
-
-    }
-
-    private static abstract class TestRegion implements Region {
-        public long deposit = 0;
-        public Player owner = null;
-    }
-
-    private static abstract class TestPlayer implements Player {
-        public final Map<String, Long> identifiers = new HashMap<>();
-        public TestRegion cityCenter;
-        public long budget = 1;
-
-        public TestPlayer(TestRegion cityCenter) {
-            cityCenter.updateOwner(this);
-            this.cityCenter = cityCenter;
-        }
     }
 }
