@@ -134,9 +134,10 @@ public final class GameTest {
         for (int i = 0; i < 2; i++) {
             game.beginTurn();
             TestPlayer currentPlayer = i % 2 == 1 ? player2 : player1;
+            currentPlayer.budget = 0;
             assertFalse(game.collect(0));
 
-            currentPlayer.budget = (1);
+            currentPlayer.budget = 1;
             assertTrue(game.collect(0));
             assertEquals(0, currentPlayer.getBudget());
 
@@ -189,27 +190,46 @@ public final class GameTest {
     }
 
     @Test
+    public void relocateWithOpponentCity() {
+        // 23 21 11
+        game.beginTurn();
+        territory.get(6).updateOwner(player1);
+        territory.get(11).updateOwner(player1);
+        game.endTurn();
+        game.beginTurn();
+        player2.budget = 1;
+        game.moveCityCrew(Point.of(0, 3));
+        game.relocate();
+        game.endTurn();
+    }
+
+    @Test
     public void relocate() {
         game.beginTurn();
-        player1.updateBudget(1000);
-        game.moveCityCrew(Point.of(0, 0));
+
+        player1.budget = 2;
         game.moveCityCrew(Point.of(3, 2));
+        territory.get(11).updateOwner(player1);
+        game.invest(1);
+
+        player1.budget = 1000;
         game.relocate();
         assertEquals(974, game.budget());
-        game.moveCityCrew(Point.of(0, 0));
-        game.relocate();
-        assertEquals(948, game.budget());
 
-        player1.updateBudget(-948);
-        game.moveCityCrew(Point.of(3, 2));
+        player1.budget = 2;
+        game.moveCityCrew(Point.of(0, 0));
+        territory.get(0).updateOwner(player1);
+        game.invest(1);
+
+        player1.budget = 1000;
         game.relocate();
-        assertEquals(0, game.budget());
+        assertEquals(974, game.budget());
     }
 
     @Test
     public void attack() {
         game.beginTurn();
-        player1.updateBudget(1000);
+        player1.budget = 1000;
         game.moveCityCrew(Point.of(0, 0));
         territory.get(6).updateOwner(player2);
         territory.get(6).updateDeposit(100);
@@ -303,16 +323,25 @@ public final class GameTest {
     }
 
     @Test
-    public void testMove() {
-        game.beginTurn();
-        TestPlayer currentPlayer = player1;
-        assertFalse(game.move(Direction.Up));
-        assertFalse(game.move(Direction.UpLeft));
-        assertFalse(game.move(Direction.UpRight));
-        assertFalse(game.move(Direction.Down));
-        assertFalse(game.move(Direction.DownLeft));
-        assertFalse(game.move(Direction.DownRight));
+    public void noBudgetMove() {
+        for (int i = 0; i < 2; i++) {
+            TestPlayer currentPlayer = i == 0 ? player1 : player2;
+            currentPlayer.budget = 0;
+            game.beginTurn();
+            assertFalse(game.move(Direction.Up));
+            assertFalse(game.move(Direction.UpLeft));
+            assertFalse(game.move(Direction.UpRight));
+            assertFalse(game.move(Direction.Down));
+            assertFalse(game.move(Direction.DownLeft));
+            assertFalse(game.move(Direction.DownRight));
+            game.endTurn();
+        }
+    }
 
+    @Test
+    public void testMove() {
+        TestPlayer currentPlayer = player1;
+        game.beginTurn();
         currentPlayer.budget = 2;
         assertEquals(Point.of(0, 1), game.cityCrewRegion().getLocation());
 
@@ -383,15 +412,46 @@ public final class GameTest {
         playerRegion.updateDeposit(100);
         Configuration configuration = mockConfiguration();
         long playerDeposit = 100;
-        for (int i = 0; i <= 100; i++) {
-            game.beginTurn();
+        for (int i = 1; i <= 100; i++) {
+            game.submitPlan("done");
+            game.submitPlan("done");
             playerDeposit *= 1.0 + configuration.interestPercentage(i, playerDeposit) / 100.0;
             assertEquals(Math.min(configuration.maxDeposit(), playerDeposit), // must not exceed limit
                     playerRegion.getDeposit(), String.format("not equals at turn %d", i));
-            game.endTurn();
-            game.beginTurn();
-            game.endTurn();
         }
+    }
+
+    @Test
+    public void defeatedByOutOfBudget() {
+        player1.budget = 1;
+        player2.budget = 1;
+        game.submitPlan("done");
+        game.submitPlan("done");
+        assertNull(game.winner());
+
+        player1.budget = 0;
+        game.submitPlan("done");
+        assertThrows(GameException.GameEnded.class, () -> game.submitPlan("done"));
+        assertEquals(player2, game.winner());
+    }
+
+    @Test
+    public void defeatedByNoCityCenter() {
+        player1.budget = 1;
+        player2.budget = 1;
+        game.submitPlan("done");
+        game.submitPlan("done");
+        assertNull(game.winner());
+
+        territory.get(7).owner = null;
+        game.submitPlan("done");
+        assertThrows(GameException.GameEnded.class, () -> game.submitPlan("done"));
+        assertEquals(player1, game.winner());
+    }
+
+    @Test
+    public void testTick() {
+
     }
 
     private static abstract class TestRegion implements Region {
@@ -402,7 +462,7 @@ public final class GameTest {
     private static abstract class TestPlayer implements Player {
         public final Map<String, Long> identifiers = new HashMap<>();
         public TestRegion cityCenter;
-        public long budget = 0;
+        public long budget = 1;
 
         public TestPlayer(TestRegion cityCenter) {
             cityCenter.updateOwner(this);

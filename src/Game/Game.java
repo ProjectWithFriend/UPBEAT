@@ -82,4 +82,10 @@ public interface Game {
     Region cityCrewRegion();
 
     Player getCurrentPlayer();
+
+    /**
+     * get winner of the game
+     * @return `null` if no one win else winner
+     */
+    Player winner();
 }

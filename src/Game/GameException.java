@@ -18,18 +18,15 @@ public abstract class GameException extends RuntimeException {
     }
 
     public static class InvalidConfiguration extends ASTException {
-        public InvalidConfiguration(String m) {
-            super(m);
-        }
 
         public InvalidConfiguration() {
             super();
         }
     }
 
-    public static class InvalidValue extends ASTException {
-        public InvalidValue(long m) {
-            super(String.format("invalid value '%d'", m));
+    public static class GameEnded extends ASTException {
+        public GameEnded() {
+            super("game already ended");
         }
 
     }

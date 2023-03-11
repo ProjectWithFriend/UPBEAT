@@ -20,6 +20,7 @@ public class GameProps implements Game {
     protected final Map<Player, Region> cityCenters;
     protected final Configuration config;
     protected long turn;
+    protected Player winner;
 
     public GameProps(Configuration config, List<Region> territory, Player player1, Player player2) {
         this.turn = 1;
@@ -54,7 +55,7 @@ public class GameProps implements Game {
     }
 
     private List<Region> getAdjacentRegions(Region region) {
-        List<Region> adjacentRegions = new LinkedList<>();
+        List<Region> adjacentRegions = new ArrayList<>(6);
         Point currentLocation = region.getLocation();
         for (Direction direction : Direction.values()) {
             Point newLocation = currentLocation.direction(direction);
@@ -83,6 +84,30 @@ public class GameProps implements Game {
         return true;
     }
 
+    private double shortestPathAStar(Point from, Point to) {
+        Map<Point, Double> distances = new HashMap<>(6);
+        List<Map.Entry<Point, Double>> list = new ArrayList<>(32);
+        Point newPoint = from;
+        long i = 0;
+        while (!newPoint.equals(to)) {
+            for (Direction direction : Direction.values()) {
+                Point x = newPoint.direction(direction);
+                if (!x.isValidPoint(config.rows(), config.cols()))
+                    continue;
+                distances.put(x, shortestPathPythagoras(x, to));
+            }
+            list.addAll(distances.entrySet());
+            list.sort(Map.Entry.comparingByValue());
+            newPoint = list.remove(0).getKey();
+            i++;
+        }
+        return i;
+    }
+
+    private double shortestPathPythagoras(Point from, Point to) {
+        return Math.sqrt(Math.pow(from.getX() - to.getX(), 2) + Math.pow(from.getY() - to.getY(), 2));
+    }
+
     @Override
     public boolean relocate() {
         //check if the player has enough budget
@@ -91,7 +116,7 @@ public class GameProps implements Game {
 
         Point currentCityCrewLocation = cityCrew.getLocation();
         Point currentCityCenter = cityCenters.get(currentPlayer).getLocation();
-        int distance = (int) Math.floor(Math.sqrt(Math.pow(currentCityCrewLocation.getX() - currentCityCenter.getX(), 2) + Math.pow(currentCityCrewLocation.getY() - currentCityCenter.getY(), 2)));
+        int distance = (int) shortestPathAStar(currentCityCrewLocation, currentCityCenter);
         if (distance < 0) distance = 1;
         int cost = 5 * distance + 10;
 
@@ -150,15 +175,34 @@ public class GameProps implements Game {
         return 0;
     }
 
-    @Override
-    public void submitPlan(String constructionPlan) {
-        Parser parser = new GrammarParser(new IterateTokenizer(constructionPlan));
+    private void executePlan(String plan) {
+        Parser parser = new GrammarParser(new IterateTokenizer(plan));
         List<Node.ExecNode> nodes = parser.parse();
-        beginTurn();
         for (Node.ExecNode node : nodes) {
             node.execute(this);
         }
+    }
+
+    @Override
+    public void submitPlan(String constructionPlan) {
+        if (winner != null)
+            throw new GameException.GameEnded();
+        beginTurn();
+        executePlan(constructionPlan);
+        winner = findWinner();
         endTurn();
+    }
+
+    private Player findWinner() {
+        if (player1.getBudget() == 0)
+            return player2;
+        else if (player2.getBudget() == 0)
+            return player1;
+        if (territory.stream().noneMatch(region -> region.getIsCityCenter() && region.getOwner() == player1))
+            return player2;
+        else if (territory.stream().noneMatch(region -> region.getIsCityCenter() && region.getOwner() == player2))
+            return player1;
+        return null;
     }
 
     @Override
@@ -179,6 +223,11 @@ public class GameProps implements Game {
     @Override
     public Player getCurrentPlayer() {
         return currentPlayer;
+    }
+
+    @Override
+    public Player winner() {
+        return winner;
     }
 
     @Override
@@ -215,9 +264,9 @@ public class GameProps implements Game {
     private void interestProcess() {
         for (Region region : territory) {
             if (region.getOwner() != null) {
-                long interest = region.getDeposit();
-                interest *= config.interestPercentage(turn, interest) / 100.0;
-                region.updateDeposit(interest);
+                long deposit = region.getDeposit();
+                deposit *= config.interestPercentage(turn, deposit) / 100.0;
+                region.updateDeposit(deposit);
             }
         }
     }
