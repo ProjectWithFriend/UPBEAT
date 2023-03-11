@@ -35,6 +35,11 @@ public final class GameTest {
             }
 
             @Override
+            public void removeCityCenter() {
+                isCityCenter = false;
+            }
+
+            @Override
             public long getDeposit() {
                 return deposit;
             }

@@ -1,6 +1,7 @@
 package Region;
 
 import Player.*;
+
 public class RegionProps implements Region {
     private final long maxDeposit;
     private boolean isCityCenter;
@@ -44,12 +45,22 @@ public class RegionProps implements Region {
 
     @Override
     public void setCityCenter(Player owner) {
-        isCityCenter = true;
-        updateOwner(owner);
+        this.isCityCenter = true;
+        this.owner = owner;
+    }
+
+    @Override
+    public void removeCityCenter() {
+        isCityCenter = false;
     }
 
     @Override
     public Point getLocation() {
         return this.location;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("owner: %s, location: %s", owner, location);
     }
 }

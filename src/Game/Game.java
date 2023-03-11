@@ -13,6 +13,8 @@ public interface Game {
 
     Player getPlayer2();
 
+    long getTurn();
+
     Map<String, Long> identifiers();
 
     Map<String, Long> specialIdentifiers();

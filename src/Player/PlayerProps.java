@@ -43,4 +43,8 @@ public class PlayerProps implements Player {
         return identifier;
     }
 
+    @Override
+    public String toString() {
+        return name;
+    }
 }

@@ -11,15 +11,15 @@ import Tokenizer.IterateTokenizer;
 import java.util.*;
 
 public class GameProps implements Game {
-    private final Player player1;
-    private final Player player2;
-    private final List<Region> territory;
-    private final int actionCost = 1;
-    private Player currentPlayer;
-    private Region cityCrew;
-    private final Map<Player, Region> cityCenterRegion;
-    private final Configuration config;
-    private long turn;
+    protected final Player player1;
+    protected final Player player2;
+    protected final List<Region> territory;
+    protected final int actionCost = 1;
+    protected Player currentPlayer;
+    protected Region cityCrew;
+    protected final Map<Player, Region> cityCenters;
+    protected final Configuration config;
+    protected long turn;
 
     public GameProps(Configuration config, List<Region> territory, Player player1, Player player2) {
         this.turn = 1;
@@ -28,13 +28,13 @@ public class GameProps implements Game {
         this.player1 = player1;
         this.player2 = player2;
         this.currentPlayer = this.player1;
-        this.cityCenterRegion = new HashMap<>();
+        this.cityCenters = new HashMap<>();
     }
 
     private void getCityCenters() {
         for (Region region : territory) {
             if (region.getIsCityCenter())
-                cityCenterRegion.put(region.getOwner(), region);
+                cityCenters.put(region.getOwner(), region);
         }
     }
 
@@ -90,19 +90,17 @@ public class GameProps implements Game {
             return false;
 
         Point currentCityCrewLocation = cityCrew.getLocation();
-        Point currentCityCenter = cityCenterRegion.get(currentPlayer).getLocation();
+        Point currentCityCenter = cityCenters.get(currentPlayer).getLocation();
         int distance = (int) Math.floor(Math.sqrt(Math.pow(currentCityCrewLocation.getX() - currentCityCenter.getX(), 2) + Math.pow(currentCityCrewLocation.getY() - currentCityCenter.getY(), 2)));
         if (distance < 0) distance = 1;
         int cost = 5 * distance + 10;
 
         //validate if the player has enough budget
-        if (currentPlayer.getBudget() >= cost && cityCrew.getOwner() != currentPlayer) {
+        if (currentPlayer.getBudget() >= cost && cityCrew.getOwner() == currentPlayer) {
             currentPlayer.updateBudget(-cost);
             //update the city center location of current player
-            cityCenterRegion.get(currentPlayer).updateOwner(null);
-            cityCrew.updateOwner(currentPlayer);
-            cityCenterRegion.put(currentPlayer, cityCrew);
-            cityCenterRegion.get(currentPlayer).setCityCenter(currentPlayer);
+            cityCrew.setCityCenter(currentPlayer);
+            cityCenters.get(currentPlayer).removeCityCenter();
         }
         return false;
     }
@@ -184,6 +182,11 @@ public class GameProps implements Game {
     }
 
     @Override
+    public long getTurn() {
+        return turn;
+    }
+
+    @Override
     public Region regionAt(Point point) {
         long index = point.getY() * config.cols() + point.getX();
         return territory.get((int) index);
@@ -196,22 +199,26 @@ public class GameProps implements Game {
 
     public void beginTurn() {
         getCityCenters();
-        cityCrew = cityCenterRegion.get(currentPlayer);
+        cityCrew = cityCenters.get(currentPlayer);
     }
 
     public void endTurn() {
-        for (Region region : territory) {
-            if (region.getOwner() == currentPlayer) {
-                long interest = region.getDeposit();
-                interest *= config.interestPercentage(turn, interest) / 100.0;
-                region.updateDeposit(interest);
-            }
-        }
         if (currentPlayer == player1) {
             currentPlayer = player2;
         } else {
             currentPlayer = player1;
+            interestProcess();
             turn++;
+        }
+    }
+
+    private void interestProcess() {
+        for (Region region : territory) {
+            if (region.getOwner() != null) {
+                long interest = region.getDeposit();
+                interest *= config.interestPercentage(turn, interest) / 100.0;
+                region.updateDeposit(interest);
+            }
         }
     }
 

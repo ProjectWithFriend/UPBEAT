@@ -12,8 +12,6 @@ import java.util.*;
 
 public final class GameUtils {
 
-    private static List<Region> territory;
-
     private static Map<String, Long> nodesEvaluation(List<ExecNode> nodes) {
         Map<String, Long> map = new HashMap<>();
         for (ExecNode node : nodes) {
@@ -81,8 +79,6 @@ public final class GameUtils {
 
             @Override
             public double interestPercentage(long turn, long deposit) {
-                if (turn == 0)
-                    return 0;
                 return map.getOrDefault("interest_pct", 0L) * Math.log10(deposit) * Math.log(turn);
             }
         };
@@ -97,7 +93,7 @@ public final class GameUtils {
      * @return null if not territory else new player
      */
     public static List<Region> createTerritory(Configuration configuration) {
-        territory = new ArrayList<>();
+        List<Region> territory = new ArrayList<>((int) (configuration.rows() * configuration.cols()));
         for (int i = 0; i < configuration.rows(); i++) {
             for (int j = 0; j < configuration.cols(); j++) {
                 territory.add(new RegionProps(Point.of(j, i), configuration.maxDeposit()));
@@ -106,7 +102,7 @@ public final class GameUtils {
         return territory;
     }
 
-    private static Region pickUnoccupiedRegion() {
+    private static Region pickUnoccupiedRegion(List<Region> territory) {
         Region region;
         Random random = new Random();
         do {
@@ -123,11 +119,8 @@ public final class GameUtils {
      *
      * @return null if no territory else a new player
      */
-    public static Player createPlayer(Configuration configuration, String name) {
-        if (territory == null || territory.size() == 0)
-            return null;
-
-        Region region = pickUnoccupiedRegion();
+    public static Player createPlayer(Configuration configuration, List<Region> territory, String name) {
+        Region region = pickUnoccupiedRegion(territory);
         Player player = new PlayerProps(id++, name, configuration.initialBudget());
         region.setCityCenter(player);
         region.updateDeposit(configuration.initialDeposit());
@@ -160,8 +153,8 @@ public final class GameUtils {
     public static Game createGame(String namePlayer1, String namePlayer2) {
         Configuration configuration = defaultConfiguration();
         List<Region> territory = createTerritory(configuration);
-        Player player1 = createPlayer(configuration, namePlayer1);
-        Player player2 = createPlayer(configuration, namePlayer2);
+        Player player1 = createPlayer(configuration, territory, namePlayer1);
+        Player player2 = createPlayer(configuration, territory, namePlayer2);
         return new GameProps(configuration, territory, player1, player2);
     }
 }
