@@ -12,7 +12,7 @@ import java.util.*;
 
 public final class GameUtils {
 
-    private static Map<String, Long> nodesEvaluation(List<ExecNode> nodes) {
+    private static Map<String, Long> evaluate(List<ExecNode> nodes) {
         Map<String, Long> map = new HashMap<>();
         for (ExecNode node : nodes) {
             if (!(node instanceof AssignmentNode))
@@ -22,10 +22,23 @@ public final class GameUtils {
         return map;
     }
 
+    private static class ConfigParser extends GrammarParser {
+        public ConfigParser(Tokenizer tkz) {
+            super(tkz);
+        }
+
+        @Override
+        public List<ExecNode> parse() {
+            List<ExecNode> parameters = new ArrayList<>(10);
+            parseStatements(parameters);
+            return parameters;
+        }
+    }
+
     public static Configuration loadConfig(String config) {
-        Parser parser = new GrammarParser(new IterateTokenizer(config));
+        Parser parser = new ConfigParser(new IterateTokenizer(config));
         List<ExecNode> nodes = parser.parse();
-        Map<String, Long> map = nodesEvaluation(nodes);
+        Map<String, Long> map = evaluate(nodes);
         Configuration configuration = new Configuration() {
             @Override
             public long rows() {
@@ -152,6 +165,22 @@ public final class GameUtils {
      */
     public static Game createGame(String namePlayer1, String namePlayer2) {
         Configuration configuration = defaultConfiguration();
+        List<Region> territory = createTerritory(configuration);
+        Player player1 = createPlayer(configuration, territory, namePlayer1);
+        Player player2 = createPlayer(configuration, territory, namePlayer2);
+        return new GameProps(configuration, territory, player1, player2);
+    }
+
+    /**
+     * create new game with specific configuration
+     *
+     * @param strConfiguration configuration of the game
+     * @param namePlayer1 name of player 1
+     * @param namePlayer2 name of player 2
+     * @return instance of the game
+     */
+    public static Game createCustomGame(String strConfiguration, String namePlayer1, String namePlayer2) {
+        Configuration configuration = loadConfig(strConfiguration);
         List<Region> territory = createTerritory(configuration);
         Player player1 = createPlayer(configuration, territory, namePlayer1);
         Player player2 = createPlayer(configuration, territory, namePlayer2);

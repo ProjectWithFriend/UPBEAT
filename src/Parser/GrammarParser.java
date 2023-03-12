@@ -32,7 +32,7 @@ public class GrammarParser implements Parser {
     InfoExpression → opponent | nearby Direction
      */
 
-    private final Tokenizer tkz;
+    protected final Tokenizer tkz;
     private final List<String> commands = Arrays.stream(
             new String[]{"done", "relocate", "move", "invest", "collect", "shoot"}
     ).toList();
@@ -61,7 +61,7 @@ public class GrammarParser implements Parser {
         return plan;
     }
 
-    private void parseStatements(List<ExecNode> list) {
+    protected void parseStatements(List<ExecNode> list) {
         while (!tkz.peek("}") && tkz.hasNext()) {
             list.add(parseStatement());
         }

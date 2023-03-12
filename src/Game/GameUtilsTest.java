@@ -58,4 +58,13 @@ public final class GameUtilsTest {
         }
         assertEquals(regions.size(), territory.size(), "duplicated region found");
     }
+
+    @Test
+    public void createCustomGame() {
+        Game game = GameUtils.createCustomGame("""
+                m=100
+                n=100
+                """, "player1", "player2");
+        assertEquals(100*100, game.getTerritory().size());
+    }
 }
