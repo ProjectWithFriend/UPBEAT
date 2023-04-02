@@ -33,14 +33,17 @@ public class RegionProps implements Region {
     }
 
     @Override
-    public void updateDeposit(long amount) {
+    public Player updateDeposit(long amount) {
         deposit = Math.max(0, amount + deposit);
         deposit = Math.min(maxDeposit, deposit);
+        return deposit > 0 && owner != null ? null : updateOwner(null);
     }
 
     @Override
-    public void updateOwner(Player owner) {
+    public Player updateOwner(Player owner) {
+        Player oldOwner = this.owner;
         this.owner = owner;
+        return oldOwner;
     }
 
     @Override

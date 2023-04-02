@@ -22,7 +22,7 @@ public interface Point {
     }
 
     default boolean isValidPoint(long rows, long cols) {
-        return getX() >= 0 && getY() >= 0 && getX() < rows && getY() < cols;
+        return getX() >= 0 && getY() >= 0 && getY() < rows && getX() < cols;
     }
 
     static Point of(long x, long y) {

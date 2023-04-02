@@ -11,9 +11,14 @@ public interface Region {
     Point getLocation();
     long getDeposit();
 
-    void updateDeposit(long amount);
+    Player updateDeposit(long amount);
 
-    void updateOwner(Player owner);
+    /**
+     * assign new owner to the region
+     * @param owner new owner of region
+     * @return old owner of that region
+     */
+    Player updateOwner(Player owner);
     void setCityCenter(Player owner);
 
 }

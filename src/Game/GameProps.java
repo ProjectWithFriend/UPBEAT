@@ -9,15 +9,15 @@ import Region.*;
 import Tokenizer.IterateTokenizer;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class GameProps implements Game {
-    protected final Player player1;
-    protected final Player player2;
+    protected List<Player> players;
     protected final List<Region> territory;
     protected final int actionCost = 1;
     protected Player currentPlayer;
     protected Region cityCrew;
-    protected final Map<Player, Region> cityCenters;
+    protected Map<Player, Region> cityCenters;
     protected final Configuration config;
     protected long turn;
     protected Player winner;
@@ -26,9 +26,8 @@ public class GameProps implements Game {
         this.turn = 1;
         this.config = config;
         this.territory = territory;
-        this.player1 = player1;
-        this.player2 = player2;
-        this.currentPlayer = this.player1;
+        this.players = List.of(player1, player2);
+        this.currentPlayer = players.get(0);
         this.cityCenters = new HashMap<>();
     }
 
@@ -67,21 +66,20 @@ public class GameProps implements Game {
     }
 
     @Override
-    public boolean invest(long value) {
+    public void invest(long value) {
         currentPlayer.updateBudget(-1);
+        if (currentPlayer.getBudget() < value || value <= 0)
+            return;
         boolean atLeastOneAdjacent = cityCrew.getOwner() == currentPlayer;
         for (Region adjacent : getAdjacentRegions(cityCrew)) {
             if (atLeastOneAdjacent) break;
             atLeastOneAdjacent = adjacent.getOwner() == currentPlayer;
         }
-        if (!atLeastOneAdjacent) // adjacency requirement
-            return true;
-        if (currentPlayer.getBudget() < value) // budget requirement
-            return true;
+        if (!atLeastOneAdjacent)
+            return;
         currentPlayer.updateBudget(-value);
         cityCrew.updateOwner(currentPlayer);
         cityCrew.updateDeposit(value);
-        return true;
     }
 
     private record GoaledPoint(Point position, Point goal) implements Comparable<GoaledPoint> {
@@ -155,8 +153,8 @@ public class GameProps implements Game {
         if (currentPlayer.getBudget() >= cost && cityCrew.getOwner() == currentPlayer) {
             currentPlayer.updateBudget(-cost);
             //update the city center location of current player
-            cityCrew.setCityCenter(currentPlayer);
             cityCenters.get(currentPlayer).removeCityCenter();
+            cityCrew.setCityCenter(currentPlayer);
         }
         return false;
     }
@@ -220,20 +218,7 @@ public class GameProps implements Game {
             throw new GameException.GameEnded();
         beginTurn();
         executePlan(constructionPlan);
-        winner = findWinner();
         endTurn();
-    }
-
-    private Player findWinner() {
-        if (player1.getBudget() == 0)
-            return player2;
-        else if (player2.getBudget() == 0)
-            return player1;
-        if (territory.stream().noneMatch(region -> region.getIsCityCenter() && region.getOwner() == player1))
-            return player2;
-        else if (territory.stream().noneMatch(region -> region.getIsCityCenter() && region.getOwner() == player2))
-            return player1;
-        return null;
     }
 
     @Override
@@ -241,14 +226,25 @@ public class GameProps implements Game {
         return territory;
     }
 
+
+    @Override
+    public long getTurnCount() {
+        return this.turn;
+    }
+
+    @Override
+    public Player getWinner() {
+        return winner;
+    }
+
     @Override
     public Player getPlayer1() {
-        return player1;
+        return players.get(0);
     }
 
     @Override
     public Player getPlayer2() {
-        return player2;
+        return players.get(1);
     }
 
     @Override
@@ -256,40 +252,43 @@ public class GameProps implements Game {
         return currentPlayer;
     }
 
-    @Override
-    public Player winner() {
-        return winner;
-    }
-
-    @Override
-    public long getTurn() {
-        return turn;
-    }
-
-    @Override
     public Region regionAt(Point point) {
         long index = point.getY() * config.cols() + point.getX();
         return territory.get((int) index);
     }
 
-    @Override
     public long budget() {
         return currentPlayer.getBudget();
     }
 
-    public void beginTurn() {
+    protected void beginTurn() {
         getCityCenters();
         cityCrew = cityCenters.get(currentPlayer);
     }
 
-    public void endTurn() {
-        if (currentPlayer == player1) {
-            currentPlayer = player2;
-        } else {
-            currentPlayer = player1;
+    protected void endTurn() {
+        if (winner != null)
+            return;
+
+        // round-robin player
+        if (currentPlayer.equals(getPlayer1()))
+            currentPlayer = getPlayer2();
+        else {
+            currentPlayer = getPlayer1();
             interestProcess();
             turn++;
         }
+
+        players = players.stream()
+                .filter(player -> player.getBudget() > 0)
+                .collect(Collectors.toList());
+        if (players.size() == 1)
+            winner = players.get(0);
+        cityCenters = cityCenters.entrySet().stream()
+                .filter(e -> e.getValue().getOwner() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        if (cityCenters.size() == 1)
+            winner = cityCenters.keySet().iterator().next();
     }
 
     private void interestProcess() {
@@ -302,7 +301,6 @@ public class GameProps implements Game {
         }
     }
 
-    @Override
     public Region cityCrewRegion() {
         return cityCrew;
     }
@@ -348,31 +346,24 @@ public class GameProps implements Game {
     }
 
     @Override
-    public boolean attack(Direction direction, long value) {
+    public boolean attack(Direction direction, long expenditure) {
+        currentPlayer.updateBudget(-actionCost);
         //validate if the player has enough budget
-        if (value + actionCost > currentPlayer.getBudget() || value < 0) {
-            currentPlayer.updateBudget(-actionCost);
+        if (expenditure > currentPlayer.getBudget())
             return false;
-        }
+        currentPlayer.updateBudget(-expenditure);
 
         //get vital information
         Point cityCrewLocation = cityCrew.getLocation();
         Point targetLocation = cityCrewLocation.direction(direction);
 
         //validate if the target location is valid
-        if (targetLocation.isValidPoint(config.rows(), config.cols())) {
-            Region targetRegion = regionAt(targetLocation);
-            if (value < targetRegion.getDeposit()) {
-                //update the budget of current player
-                currentPlayer.updateBudget(-actionCost - value);
-                //update the deposit of the target region
-                targetRegion.updateDeposit(-value);
-            } else if (value >= targetRegion.getDeposit()) {
-                targetRegion.updateDeposit(-value);
-                targetRegion.updateOwner(null);
-                currentPlayer.updateBudget(-actionCost - value);
-            }
-        }
+        if (!targetLocation.isValidPoint(config.rows(), config.cols()))
+            return true;
+        Region targetRegion = regionAt(targetLocation);
+        Player oldOwner = targetRegion.updateDeposit(-expenditure);
+        if (oldOwner != null && cityCenters.containsValue(targetRegion))
+            winner = currentPlayer;
         return true;
     }
 }

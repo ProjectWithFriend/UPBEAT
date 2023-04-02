@@ -9,23 +9,52 @@ import java.util.Map;
 public interface Game {
     List<Region> getTerritory();
 
+    /**
+     * @return current turn of the game
+     */
+    long getTurnCount();
+
+    /**
+     * get the winner of the game
+     *
+     * @return `null` if no one win yet else winner
+     */
+    Player getWinner();
+
+    /**
+     * @return instance of player 1
+     */
     Player getPlayer1();
 
+    /**
+     * @return instance of player 2
+     */
     Player getPlayer2();
 
-    long getTurn();
+    /**
+     * @return instance of current player
+     */
+    Player getCurrentPlayer();
 
+    /**
+     * get identifiers of current player of construct plan context
+     *
+     * @return identifiers of current player
+     */
     Map<String, Long> identifiers();
 
+    /**
+     * @return special identifiers of current game state
+     */
     Map<String, Long> specialIdentifiers();
 
     /**
      * attempts to attack a region located one unit away from the city crew in the specified direction.
      *
      * @param direction direction to attack
-     * @param value     expenditure
+     * @param expenditure     expenditure
      */
-    boolean attack(Direction direction, long value);
+    boolean attack(Direction direction, long expenditure);
 
     /**
      * retrieves deposits from the current region occupied by the city crew.
@@ -40,7 +69,7 @@ public interface Game {
      *
      * @param value deposits
      */
-    boolean invest(long value);
+    void invest(long value);
 
     /**
      * relocates the city center to the current region of city crew.
@@ -74,18 +103,4 @@ public interface Game {
      * @param constructionPlan a plan
      */
     void submitPlan(String constructionPlan);
-
-    Region regionAt(Point point);
-
-    long budget();
-
-    Region cityCrewRegion();
-
-    Player getCurrentPlayer();
-
-    /**
-     * get winner of the game
-     * @return `null` if no one win else winner
-     */
-    Player winner();
 }

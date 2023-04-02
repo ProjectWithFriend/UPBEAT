@@ -11,6 +11,7 @@ public class InvestNode extends Node.ExecNode {
 
     @Override
     public boolean execute(Game game) {
-        return game.invest(expression.eval(game));
+        game.invest(expression.eval(game));
+        return true;
     }
 }
