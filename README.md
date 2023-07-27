@@ -25,3 +25,5 @@ It about a turn base game like _**Civilization**_, but it's not the same.
 - Factor → Power ^ Factor | Power
 - Power → <number> | <identifier> | ( Expression ) | InfoExpression
 - InfoExpression → opponent | nearby Direction
+
+# Collaborator
